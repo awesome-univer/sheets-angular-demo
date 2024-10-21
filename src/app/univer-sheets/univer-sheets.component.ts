@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, Input, ViewChild, ElementRef, SimpleChanges } from '@angular/core';
-import { Univer } from '@univerjs/core';
+import { LocaleType, Univer, UniverInstanceType } from '@univerjs/core';
 import { defaultTheme } from '@univerjs/design';
 import { UniverDocsPlugin } from '@univerjs/docs';
 import { UniverDocsUIPlugin } from '@univerjs/docs-ui';
@@ -8,8 +8,10 @@ import { UniverRenderEnginePlugin } from '@univerjs/engine-render';
 import { FUniver } from '@univerjs/facade';
 import { UniverSheetsPlugin } from '@univerjs/sheets';
 import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
+import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui';
 import { UniverSheetsUIPlugin } from '@univerjs/sheets-ui';
 import { UniverUIPlugin } from '@univerjs/ui';
+import enUS from './locales/enUS';
 
 
 @Component({
@@ -24,7 +26,6 @@ export class UniverSheets implements OnInit, OnDestroy {
   @ViewChild('containerRef', { static: true }) containerRef: ElementRef | null = null;
 
   private univer: Univer | null = null;
-  private workbook: any;
 
   public univerAPI: FUniver | null = null;
 
@@ -38,8 +39,8 @@ export class UniverSheets implements OnInit, OnDestroy {
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['data'] && changes['data'].currentValue !== changes['data'].previousValue) {
-      this.destroyUniver();
-      this.init(changes['data'].currentValue);
+      this.univerAPI?.disposeUnit(this.univerAPI.getActiveWorkbook()?.getId()!);
+      this.univerAPI?.createUniverSheet(changes['data'].currentValue);
     }
   }
 
@@ -49,6 +50,10 @@ export class UniverSheets implements OnInit, OnDestroy {
     }
 
     const univer = new Univer({
+      locale: LocaleType.EN_US,
+      locales: {
+        [LocaleType.EN_US]: enUS,
+      },
       theme: defaultTheme,
     });
     this.univer = univer;
@@ -59,7 +64,6 @@ export class UniverSheets implements OnInit, OnDestroy {
     univer.registerPlugin(UniverUIPlugin, {
       container: this.containerRef.nativeElement,
       header: true,
-      toolbar: true,
       footer: true,
     });
 
@@ -73,9 +77,10 @@ export class UniverSheets implements OnInit, OnDestroy {
     univer.registerPlugin(UniverSheetsPlugin);
     univer.registerPlugin(UniverSheetsUIPlugin);
     univer.registerPlugin(UniverSheetsFormulaPlugin);
+    univer.registerPlugin(UniverSheetsFormulaUIPlugin);
 
     // create workbook instance
-    this.workbook = univer.createUniverSheet(data);
+    univer.createUnit(UniverInstanceType.UNIVER_SHEET, data);
 
     this.univerAPI = FUniver.newAPI(univer);
   }
@@ -83,14 +88,10 @@ export class UniverSheets implements OnInit, OnDestroy {
   private destroyUniver() {
     this.univer?.dispose();
     this.univer = null;
-    this.workbook = null;
     this.univerAPI = null;
   }
 
   public getData() {
-    if (!this.workbook) {
-      throw new Error('Workbook is not initialized');
-    }
-    return this.workbook.save();
+    return this.univerAPI?.getActiveWorkbook()?.save();
   }
 }
